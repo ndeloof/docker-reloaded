@@ -1,0 +1,4 @@
+<?jelly escape-by-default='true'?>
+<div>
+  This plugin allow Jenkins to efficiently use <a href="http://docker.com/">Docker</a>
+</div>
