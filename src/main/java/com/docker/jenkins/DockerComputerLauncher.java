@@ -1,9 +1,15 @@
 package com.docker.jenkins;
 
-import hudson.EnvVars;
+import com.docker.jocker.DockerClient;
+import com.docker.jocker.io.DockerMultiplexedInputStream;
+import com.docker.jocker.model.ContainerCreateResponse;
+import com.docker.jocker.model.ContainerSpec;
+import com.docker.jocker.model.HostConfig;
+import com.docker.jocker.model.HostConfigLogConfig;
+import com.docker.jocker.model.Streams;
 import hudson.Launcher;
-import hudson.model.Slave;
 import hudson.model.TaskListener;
+import hudson.remoting.Which;
 import hudson.slaves.CommandLauncher;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.SlaveComputer;
@@ -13,10 +19,11 @@ import org.apache.tools.tar.TarOutputStream;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 
 import static com.docker.jenkins.DockerAgent.ROOT;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * @author <a href="mailto:nicolas.deloof@gmail.com">Nicolas De Loof</a>
@@ -34,33 +41,43 @@ public class DockerComputerLauncher extends ComputerLauncher {
     }
 
     private void launch(final DockerComputer computer, TaskListener listener) throws IOException, InterruptedException {
-        ArgumentListBuilder args = new ArgumentListBuilder()
-                .add("docker", "create", "--interactive")
+        File file = Which.jarFile(hudson.remoting.Launcher.class);
 
-                // We disable container logging to sdout as we rely on this one as transport for jenkins remoting
-                .add("--log-driver=none")
-                .add("--rm")
-                .add("jenkins/agent")
-                .add("java")
-                .add("-jar").add(ROOT+"slave.jar");
+        listener.getLogger().println("Create Docker container to host the agent ...");
+        DockerClient docker = new DockerClient("unix:///var/run/docker.sock");
+        final ContainerCreateResponse created = docker.containerCreate(new ContainerSpec()
+                // --log-driver=none
+                .hostConfig(new HostConfig()
+                    .logConfig(new HostConfigLogConfig()
+                    .type(HostConfigLogConfig.TypeEnum.NONE)))
+                .image("jenkins/agent")
+                .cmd(Arrays.asList("java", "-jar", ROOT + file.getName()))
+                // --interactive
+                .attachStdin(true)
+                .attachStdout(true)
+                .attachStderr(true)
+                .openStdin(true)
+                .stdinOnce(true)
+                .tty(false),
+                null);
 
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        int status = run(args, listener)
-                .stdout(out).join();
-
-        if (status != 0) {
-            throw new IOException("Failed to create docker image");
-        }
-        String containerId = out.toString(UTF_8.name()).trim();
+        String containerId = created.getId(); 
         computer.container = containerId;
+        listener.getLogger().printf("Docker container %s created\n", containerId);
 
+        listener.getLogger().printf("Copy %s into agent container\n", file.getName());
         // Inject current slave.jar to ensure adequate version running
-        copy(containerId, DockerAgent.ROOT, "slave.jar", new Slave.JnlpJar("slave.jar").readFully(), listener);
+        docker.putContainerFile(containerId, ROOT, false, file);
 
-        args = new ArgumentListBuilder()
-                .add("docker", "start")
-                .add("--interactive", "--attach", containerId);
-        new CommandLauncher(args.toString(), new EnvVars()).launch(computer, listener);
+        listener.getLogger().println("Attach to container stdin/stdout");
+        Streams streams = docker.containerAttach(containerId, true, true, true, true, false, "", false);
+        streams.redirectStderr(listener.getLogger());
+
+        listener.getLogger().println("Start container");
+        docker.containerStart(containerId);
+
+        listener.getLogger().println("Container started, create channel on top of stdin/stdout");
+        computer.setChannel(streams.stdout(), streams.stdin(), listener.getLogger(), null);
     }
 
     protected int copy(String containerId, String path, String filename, byte[] content, TaskListener listener) throws IOException, InterruptedException {
