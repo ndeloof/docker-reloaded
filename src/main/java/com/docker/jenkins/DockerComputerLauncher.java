@@ -1,16 +1,8 @@
 package com.docker.jenkins;
 
-import com.docker.jocker.DockerClient;
-import com.docker.jocker.io.DockerMultiplexedInputStream;
-import com.docker.jocker.model.ContainerCreateResponse;
-import com.docker.jocker.model.ContainerSpec;
-import com.docker.jocker.model.HostConfig;
-import com.docker.jocker.model.HostConfigLogConfig;
 import com.docker.jocker.model.Streams;
 import hudson.Launcher;
 import hudson.model.TaskListener;
-import hudson.remoting.Which;
-import hudson.slaves.CommandLauncher;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.SlaveComputer;
 import hudson.util.ArgumentListBuilder;
@@ -19,11 +11,7 @@ import org.apache.tools.tar.TarOutputStream;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
-
-import static com.docker.jenkins.DockerAgent.ROOT;
 
 /**
  * @author <a href="mailto:nicolas.deloof@gmail.com">Nicolas De Loof</a>

@@ -4,10 +4,12 @@ import hudson.Extension;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Job;
+import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.queue.QueueListener;
 import jenkins.model.Jenkins;
+import org.jenkinsci.plugins.workflow.support.steps.ExecutorStepExecution;
 
 import java.io.IOException;
 
@@ -16,8 +18,9 @@ public class DockerQueueListener extends QueueListener {
 
     @Override
     public void onEnterBuildable(final Queue.BuildableItem item) {
-        if (item.task instanceof Job) {
-            Job job = (Job) item.task;
+        final Queue.Task task = item.task;
+        if (task instanceof Job) {
+            Job job = (Job) task;
             try {
                 Node node = prepareExecutorFor(job);
                 DockerAgentAssignmentAction action = new DockerAgentAssignmentAction(node.getNodeName());
@@ -33,8 +36,25 @@ public class DockerQueueListener extends QueueListener {
             } catch (Descriptor.FormException | IOException e) {
                 e.printStackTrace();
             }
+        }
+        if (task instanceof ExecutorStepExecution.PlaceholderTask) {
+            ExecutorStepExecution.PlaceholderTask placeholder = (ExecutorStepExecution.PlaceholderTask) task;
+            try {
+                Label label = placeholder.getAssignedLabel();
+                Node node = new DockerAgent("Container for " + placeholder.getName());
+                DockerAgentAssignmentAction action = new DockerAgentAssignmentAction(node.getNodeName());
+                item.addAction(action);
 
-
+                Computer.threadPoolForRemoting.submit(() -> {
+                    try {
+                        Jenkins.get().addNode(node);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
+            } catch (IOException | Descriptor.FormException e) {
+                e.printStackTrace();
+            }
         }
     }
 
