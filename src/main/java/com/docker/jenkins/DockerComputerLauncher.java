@@ -41,40 +41,7 @@ public class DockerComputerLauncher extends ComputerLauncher {
     }
 
     private void launch(final DockerComputer computer, TaskListener listener) throws IOException, InterruptedException {
-        File file = Which.jarFile(hudson.remoting.Launcher.class);
-
-        listener.getLogger().println("Create Docker container to host the agent ...");
-        DockerClient docker = new DockerClient("unix:///var/run/docker.sock");
-        final ContainerCreateResponse created = docker.containerCreate(new ContainerSpec()
-                // --log-driver=none
-                .hostConfig(new HostConfig()
-                    .logConfig(new HostConfigLogConfig()
-                    .type(HostConfigLogConfig.TypeEnum.NONE)))
-                .image("jenkins/agent")
-                .cmd(Arrays.asList("java", "-jar", ROOT + file.getName()))
-                // --interactive
-                .attachStdin(true)
-                .attachStdout(true)
-                .attachStderr(true)
-                .openStdin(true)
-                .stdinOnce(true)
-                .tty(false),
-                null);
-
-        String containerId = created.getId(); 
-        computer.container = containerId;
-        listener.getLogger().printf("Docker container %s created\n", containerId);
-
-        listener.getLogger().printf("Copy %s into agent container\n", file.getName());
-        // Inject current slave.jar to ensure adequate version running
-        docker.putContainerFile(containerId, ROOT, false, file);
-
-        listener.getLogger().println("Attach to container stdin/stdout");
-        Streams streams = docker.containerAttach(containerId, true, true, true, true, false, "", false);
-        streams.redirectStderr(listener.getLogger());
-
-        listener.getLogger().println("Start container");
-        docker.containerStart(containerId);
+        final Streams streams = computer.launchContainer(listener);
 
         listener.getLogger().println("Container started, create channel on top of stdin/stdout");
         computer.setChannel(streams.stdout(), streams.stdin(), listener.getLogger(), null);
