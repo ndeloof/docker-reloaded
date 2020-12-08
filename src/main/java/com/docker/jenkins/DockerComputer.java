@@ -8,6 +8,7 @@ import com.docker.jocker.model.HostConfigLogConfig;
 import com.docker.jocker.model.Streams;
 import hudson.model.Executor;
 import hudson.model.TaskListener;
+import hudson.remoting.Channel;
 import hudson.remoting.Which;
 import hudson.slaves.OfflineCause;
 import hudson.slaves.SlaveComputer;
@@ -33,19 +34,6 @@ public class DockerComputer extends SlaveComputer {
     @Override
     public DockerComputerLauncher getLauncher() {
         return (DockerComputerLauncher) super.getLauncher();
-    }
-
-    protected void removeExecutor(Executor e) {
-        setAcceptingTasks(false);
-        try {
-            disconnect(new OfflineCause.UserCause(null, "stopping container"));
-            Jenkins.get().removeNode(getNode());
-            DockerClient docker = new DockerClient("unix:///var/run/docker.sock");
-            docker.containerDelete(container, false, false, true);
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
-        super.removeExecutor(e);
     }
 
     public Streams launchContainer(TaskListener listener) throws IOException {
@@ -85,5 +73,24 @@ public class DockerComputer extends SlaveComputer {
         docker.containerStart(containerId);
 
         return streams;
+    }
+
+    protected void removeExecutor(Executor e) {
+        setAcceptingTasks(false);
+        try {
+            disconnect(new OfflineCause.UserCause(null, "stopping container"));
+            Jenkins.get().removeNode(getNode());
+            DockerClient docker = new DockerClient("unix:///var/run/docker.sock");
+            docker.containerDelete(container, false, false, true);
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+        super.removeExecutor(e);
+    }
+
+
+    public DockerLauncher createLauncher(TaskListener listener) {
+        final Channel channel = getChannel();
+        return new DockerLauncher(listener, channel, container);
     }
 }

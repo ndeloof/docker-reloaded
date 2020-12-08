@@ -6,7 +6,9 @@ import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Slave;
 import hudson.model.TaskListener;
+import hudson.remoting.Channel;
 import hudson.slaves.RetentionStrategy;
+import hudson.slaves.SlaveComputer;
 
 import java.io.IOException;
 import java.util.Map;
@@ -30,15 +32,14 @@ public class DockerAgent extends Slave {
         return new DockerComputer(this);
     }
 
-
     @Override
     public Launcher createLauncher(TaskListener listener) {
-        return new Launcher.DecoratedLauncher(super.createLauncher(listener)) {
-            @Override
-            public void kill(Map<String, String> modelEnvVars) {
-                // NOOP. processes will all get killed as container is stopped
-            }
-        };
+        final DockerComputer c = (DockerComputer) getComputer();
+        if (c == null) {
+            listener.error("Issue with creating launcher for agent " + name + ". Computer has been disconnected");
+            return new Launcher.DummyLauncher(listener);
+        }
+        return c.createLauncher(listener);
     }
 
     @Extension

@@ -23,7 +23,6 @@ public class DockerComputerLauncher extends ComputerLauncher {
         if (computer instanceof DockerComputer) {
             launch((DockerComputer) computer, listener);
         } else {
-            System.err.println(computer);
             throw new IllegalArgumentException("This launcher only can handle DockerComputer");
         }
     }
