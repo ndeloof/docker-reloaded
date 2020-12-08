@@ -15,5 +15,10 @@ Which basically means:
 
 ## Getting started
 
+This plugin relies on Docker API client [Jocker](https://github.com/ndeloof/jocker)
+that is still under development. You'll need to build it from sources as it is
+not (yet) available on Maven Central.
+
+
 
 

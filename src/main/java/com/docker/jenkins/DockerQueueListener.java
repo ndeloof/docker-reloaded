@@ -19,10 +19,9 @@ public class DockerQueueListener extends QueueListener {
     @Override
     public void onEnterBuildable(final Queue.BuildableItem item) {
         final Queue.Task task = item.task;
-        if (task instanceof Job) {
-            Job job = (Job) task;
-            try {
-                Node node = prepareExecutorFor(job);
+        try {
+            final Node node = prepareExecutorFor(item, task);
+            if (node != null) {
                 DockerAgentAssignmentAction action = new DockerAgentAssignmentAction(node.getNodeName());
                 item.addAction(action);
 
@@ -33,34 +32,26 @@ public class DockerQueueListener extends QueueListener {
                         e.printStackTrace();
                     }
                 });
-            } catch (Descriptor.FormException | IOException e) {
-                e.printStackTrace();
             }
-        }
-        if (task instanceof ExecutorStepExecution.PlaceholderTask) {
-            ExecutorStepExecution.PlaceholderTask placeholder = (ExecutorStepExecution.PlaceholderTask) task;
-            try {
-                Label label = placeholder.getAssignedLabel();
-                Node node = new DockerAgent("Container for " + placeholder.getName());
-                DockerAgentAssignmentAction action = new DockerAgentAssignmentAction(node.getNodeName());
-                item.addAction(action);
-
-                Computer.threadPoolForRemoting.submit(() -> {
-                    try {
-                        Jenkins.get().addNode(node);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                });
-            } catch (IOException | Descriptor.FormException e) {
-                e.printStackTrace();
-            }
+        } catch (Descriptor.FormException | IOException e) {
+            e.printStackTrace();
         }
     }
 
-    private Node prepareExecutorFor(final Job job) throws Descriptor.FormException, IOException {
-        Node node = new DockerAgent("Container for " + job.getName() + "#" + job.getNextBuildNumber());
-        return node;
+    private Node prepareExecutorFor(Queue.BuildableItem item, final Queue.Task task) throws Descriptor.FormException, IOException {
+        if (task instanceof Job) {
+            final Job job = (Job) task;
+            return new DockerAgent("Container for " + job.getFullDisplayName() + "#" + item.getId());
+        }
+        if (task instanceof ExecutorStepExecution.PlaceholderTask) {
+            ExecutorStepExecution.PlaceholderTask placeholder = (ExecutorStepExecution.PlaceholderTask)task;
+            String label = placeholder.getAssignedLabel().getName();
+            if (label.startsWith("docker:")) {
+                System.out.println("youpi" + label.substring(7));
+            }
+            return prepareExecutorFor(item, placeholder.getOwnerTask());
+        }
+        return null;
     }
 
     @Override
