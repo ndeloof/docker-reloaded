@@ -16,7 +16,7 @@ public class DockerGlobalConfiguration extends GlobalConfiguration {
         return ExtensionList.lookupSingleton(DockerGlobalConfiguration.class);
     }
 
-    private String label;
+    private String dockerHost = "unix:///var/run/docker.sock";
 
     public DockerGlobalConfiguration() {
         // When Jenkins is restarted, load any saved configuration from disk.
@@ -24,17 +24,17 @@ public class DockerGlobalConfiguration extends GlobalConfiguration {
     }
 
     /** @return the currently configured label, if any */
-    public String getLabel() {
-        return label;
+    public String getDockerHost() {
+        return dockerHost;
     }
 
     /**
-     * Together with {@link #getLabel}, binds to entry in {@code config.jelly}.
-     * @param label the new value of this field
+     * Together with {@link #getDockerHost}, binds to entry in {@code config.jelly}.
+     * @param dockerHost the new value of this field
      */
     @DataBoundSetter
-    public void setLabel(String label) {
-        this.label = label;
+    public void setDockerHost(String dockerHost) {
+        this.dockerHost = dockerHost;
         save();
     }
 

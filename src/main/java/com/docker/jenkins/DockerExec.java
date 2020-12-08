@@ -24,7 +24,8 @@ public class DockerExec extends Proc {
 
     @Override
     public boolean isAlive() throws IOException, InterruptedException {
-        DockerClient docker = new DockerClient("unix:///var/run/docker.sock");
+        final String dockerHost = DockerGlobalConfiguration.get().getDockerHost();
+        final DockerClient docker = new DockerClient(dockerHost);
         return docker.execInspect(execId).isRunning();
     }
 
@@ -38,8 +39,8 @@ public class DockerExec extends Proc {
     @Override
     public int join() throws IOException, InterruptedException {
         // TODO watch docker event and wait for exec die
-        DockerClient docker = new DockerClient("unix:///var/run/docker.sock");
-        while (true) {
+        final String dockerHost = DockerGlobalConfiguration.get().getDockerHost();
+        final DockerClient docker = new DockerClient(dockerHost);while (true) {
             final ExecInspectResponse exec = docker.execInspect(execId);
             if (!exec.isRunning()) {
                 return exec.getExitCode();

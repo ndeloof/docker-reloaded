@@ -31,7 +31,8 @@ public class DockerLauncher extends Launcher
 
     @Override
     public Proc launch(Launcher.ProcStarter starter) throws IOException {
-        DockerClient docker = new DockerClient("unix:///var/run/docker.sock");
+        final String dockerHost = DockerGlobalConfiguration.get().getDockerHost();
+        final DockerClient docker = new DockerClient(dockerHost);
         String execId = docker.containerExec(container, new ExecConfig()
                 .attachStderr(true)
                 .attachStdout(true)

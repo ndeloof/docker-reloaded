@@ -40,7 +40,8 @@ public class DockerComputer extends SlaveComputer {
         File file = Which.jarFile(hudson.remoting.Launcher.class);
 
         listener.getLogger().println("Create Docker container to host the agent ...");
-        DockerClient docker = new DockerClient("unix:///var/run/docker.sock");
+        final String dockerHost = DockerGlobalConfiguration.get().getDockerHost();
+        final DockerClient docker = new DockerClient(dockerHost);
         final ContainerCreateResponse created = docker.containerCreate(new ContainerSpec()
                         // --log-driver=none
                         .hostConfig(new HostConfig()
@@ -80,7 +81,8 @@ public class DockerComputer extends SlaveComputer {
         try {
             disconnect(new OfflineCause.UserCause(null, "stopping container"));
             Jenkins.get().removeNode(getNode());
-            DockerClient docker = new DockerClient("unix:///var/run/docker.sock");
+            final String dockerHost = DockerGlobalConfiguration.get().getDockerHost();
+            final DockerClient docker = new DockerClient(dockerHost);
             docker.containerDelete(container, false, false, true);
         } catch (IOException ex) {
             ex.printStackTrace();
