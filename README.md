@@ -12,6 +12,8 @@ Which basically means:
  - Docker agents get created immediately on build schedule
  - Docker agents get stopped as the build complete
 
+Want to discuss plugin development or report feedback? Join [Slack channel](https://dockercommunity.slack.com/archives/C01H5SZ8D6D).
+
 
 ## Getting started
 
@@ -58,5 +60,37 @@ ran inside containers, bypassing the remoting layer.
 |            |                                          |  +---------------------+ |
 +------------+                                          +--------------------------+ 
 ```
+
+## Future
+
+A time writing, the whole build take place within the agent container, which means this 
+Docker image has to be a "fat image" to include both requirement for the Jenkins agent
+(i.e. a Java runtime) _and_ all the scm,build,test tools required for your project.
+
+Future improvement will introduce composition of containers, so that the eventual 
+architecture becomes:
+
+```
++------------+                                          +---------(docker host)------+
+| Jenkins    | ---- docker run --interactive ------------> +--(agent container)--+ |
+|  Master  ============< jenkins remoting >================= java -jar agent.jar | | 
+|            |                                          |  +---------------------+ |
+|            |                                          |           .............. |
+|            |                                          |           | Workspace  | |
+|            |                                          |           .............. |
+|            |                                          |  +--(build container)--+ |
+| build step | ---- docker exec --------------------------------> build process  | |
+|            |                                          |  +---------------------+ |
++------------+                                          +--------------------------+ 
+```
+
+This will also allow to define "sidecar containers" so that your build can define
+services, like a test database, that will be provisionned for the duration of the
+build. Think "_Docker Compose for build_".
+
+Workspace will then be allocated as a reusable Docker volume, which can be attached 
+to nexts builds to reduce build time.
+
+
 
 
